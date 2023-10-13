@@ -16,6 +16,11 @@ public class Spawner : MonoBehaviour
     public float SpawnInterval = 20;
 
     /// <summary>
+    /// Tracks the time when the next enemy should spawn
+    /// </summary>
+    private float timeForNextSpawn = 0;
+
+    /// <summary>
     /// How many units of free space to try to find around the spawned object
     /// </summary>
     public float FreeRadius = 10;
@@ -26,6 +31,10 @@ public class Spawner : MonoBehaviour
     // ReSharper disable once UnusedMember.Local
     void Update()
     {
-        // TODO
+        if (Time.time > timeForNextSpawn)
+        {
+            Instantiate(Prefab, SpawnUtilities.RandomFreePoint(FreeRadius), Quaternion.identity);
+            timeForNextSpawn = Time.time + SpawnInterval;
+        }
     }
 }

@@ -32,6 +32,11 @@ public class Enemy : MonoBehaviour
     public float CoolDownTime = 1;
 
     /// <summary>
+    /// Store the time this enemy should fire again
+    /// </summary>
+    public float timeForNextFire = 0;
+
+    /// <summary>
     /// Prefab for the orb it fires
     /// </summary>
     public GameObject OrbPrefab;
@@ -74,7 +79,11 @@ public class Enemy : MonoBehaviour
     // ReSharper disable once UnusedMember.Local
     void Update()
     {
-        // TODO
+        if (Time.time > timeForNextFire)
+        {
+            Fire();
+            timeForNextFire = Time.time + CoolDownTime;
+        }
     }
 
     /// <summary>
@@ -83,7 +92,10 @@ public class Enemy : MonoBehaviour
     /// </summary>
     private void Fire()
     {
-        // TODO
+        var orb = Instantiate(OrbPrefab, transform.position + new Vector3(HeadingToPlayer.x, HeadingToPlayer.y, 0), Quaternion.identity);
+        var orbRB = orb.GetComponent<Rigidbody2D>();
+        orbRB.velocity = OrbVelocity * HeadingToPlayer;
+        orbRB.mass = OrbMass;
     }
 
     /// <summary>
