@@ -71,7 +71,13 @@ public class ProjectileThrower : MonoBehaviour {
     /// <returns></returns>
     bool WaitingForPhysicsToSettle()
     {
-        return true;  // Replace this
+        var rigidBodies = FindObjectsByType<Rigidbody2D>(FindObjectsSortMode.None);
+        bool settled = false;
+        foreach (var rigidBody in rigidBodies)
+        {
+            if (IsActive(rigidBody)) { settled = true; break; }
+        }
+        return settled;
     }
 
     /// <summary>
@@ -86,6 +92,10 @@ public class ProjectileThrower : MonoBehaviour {
     internal void Update()
     {
         FireControl();
+        if (firingState == FiringState.Firing && !WaitingForPhysicsToSettle())
+        {
+            ResetForFiring();
+        }
     }
 
     /// <summary>
