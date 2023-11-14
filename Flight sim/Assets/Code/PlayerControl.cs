@@ -28,7 +28,7 @@ public class PlayerControl : MonoBehaviour {
     /// <summary>
     /// How far the plane can rotate about the Z axis
     /// </summary>
-    public float RollRange = 45;
+    public float RollRange = 45f;
     /// <summary>
     /// How fast the plane yaws for a given degree of roll.
     /// </summary>
@@ -111,5 +111,14 @@ public class PlayerControl : MonoBehaviour {
             playerRB.velocity.magnitude,
             transform.position.y,
             thrust);
+    }
+
+    void FixedUpdate()
+    {
+        roll = Input.GetAxis("Horizontal") * RollRange;
+        pitch = Input.GetAxis("Vertical") * PitchRange;
+        yaw = roll * RotationalSpeed;
+
+        playerRB.MoveRotation(Quaternion.Euler(pitch, yaw, roll));
     }
 }
