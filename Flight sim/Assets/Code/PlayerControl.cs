@@ -115,8 +115,12 @@ public class PlayerControl : MonoBehaviour {
 
     void FixedUpdate()
     {
-        roll = Input.GetAxis("Horizontal") * RollRange;
-        pitch = Input.GetAxis("Vertical") * PitchRange;
+        var joystickRoll = Input.GetAxis("Horizontal") * RollRange;
+        var joystickPitch = Input.GetAxis("Vertical") * PitchRange;
+
+        float weight = 0.01f;
+        roll = Mathf.Lerp(roll, joystickRoll, weight);
+        pitch = Mathf.Lerp(pitch, joystickPitch, weight);
         yaw = roll * RotationalSpeed;
 
         playerRB.MoveRotation(Quaternion.Euler(pitch, yaw, roll));
