@@ -30,9 +30,13 @@ public class PlayerControl : MonoBehaviour {
     /// </summary>
     public float RollRange = 45f;
     /// <summary>
+    /// Amount to lerp on each fixed update between desired roll and current roll
+    /// </summary>
+    public float LerpWeight = 0.05f;
+    /// <summary>
     /// How fast the plane yaws for a given degree of roll.
     /// </summary>
-    public float RotationalSpeed = 5f;
+    public float RotationalSpeed = 0.02f;
     /// <summary>
     /// Thrust generated when the throttle is pulled back all the way.
     /// </summary>
@@ -54,11 +58,12 @@ public class PlayerControl : MonoBehaviour {
     private Rigidbody playerRB;
 
 
+
+
     /// <summary>
     /// Magic layer mask code for the updraft(s)
     /// </summary>
     const int UpdraftLayerMask = 1 << 8;
-
 
     #region Internal flight state
     /// <summary>
@@ -77,7 +82,12 @@ public class PlayerControl : MonoBehaviour {
     /// Current thrust (forward force provided by engines
     /// </summary>
     private float thrust;
-#endregion
+    #endregion
+
+    /// <summary>
+    /// Since physics is calculated before OnCollisionEnter, we need to store the previous velocity!
+    /// </summary>
+    private Vector3 lastVelocity;
 
     /// <summary>
     /// Initialize component
@@ -115,14 +125,77 @@ public class PlayerControl : MonoBehaviour {
 
     void FixedUpdate()
     {
+        // Get current pitch and roll inputs
         var joystickRoll = Input.GetAxis("Horizontal") * RollRange;
         var joystickPitch = Input.GetAxis("Vertical") * PitchRange;
 
-        float weight = 0.01f;
-        roll = Mathf.Lerp(roll, joystickRoll, weight);
-        pitch = Mathf.Lerp(pitch, joystickPitch, weight);
-        yaw = roll * RotationalSpeed;
+        // Lerp between current and desired inputs with LerpWeight on each update
+        roll = Mathf.Lerp(roll, joystickRoll, LerpWeight);
+        pitch = Mathf.Lerp(pitch, joystickPitch, LerpWeight);
+        yaw -= roll * RotationalSpeed;
 
+        // Apply current orientation
         playerRB.MoveRotation(Quaternion.Euler(pitch, yaw, roll));
+
+        // Get the thrust input, ignore negative values
+        thrust = Input.GetAxis("Thrust") * MaximumThrust;
+        if (thrust < 0f)
+        {
+            thrust = 0f;
+        }
+
+        // Add thrust force
+        playerRB.AddForce(transform.forward * thrust);
+
+        // forward component of relative velocity
+        var vf = Vector3.Dot(playerRB.velocity, transform.forward);
+
+        // vertical component of wind velocity
+        var vup = Vector3.Dot(playerRB.velocity, transform.up);
+
+        // Add lift
+        playerRB.AddForce(LiftCoefficient * vf * vf * transform.up);
+
+        // If you are in an updraft...
+        Collider[] updrafts = Physics.OverlapSphere(transform.position, transform.localScale.x, UpdraftLayerMask);
+        if (updrafts.Length > 0)
+        {
+            // update the vertical component of wind with draft's velocity
+            Vector3 draft = updrafts[0].GetComponent<Updraft>().WindVelocity;
+            vup -= draft.y;
+        }
+
+        // Add forward and vertical drag
+        playerRB.AddForce(-Mathf.Sign(vf) * ForwardDragCoefficient * vf * vf * transform.forward);
+        playerRB.AddForce(-Mathf.Sign(vup) * VerticalDragCoefficient * vup * vup * transform.up);
+
+        // update last velocity so we know the velocity before collisions
+        lastVelocity = playerRB.velocity;
+    }
+
+    void OnCollisionEnter(Collision col)
+    {
+        // Ignore collisions with targets and landing platforms
+        if (col.gameObject.GetComponent<Target>() == null && col.gameObject.GetComponent<LandingPlatform>() == null)
+        {
+            // This means we hit a scene object that is not the landing pad -- game over
+            OnGameOver(false);
+        }
+        
+        // If we collide with landing platform, 
+        if (col.gameObject.GetComponent<LandingPlatform>() != null)
+        {
+            var maxLandingSpeed = col.gameObject.GetComponent<LandingPlatform>().MaxLandingSpeed;
+
+            // determine if we should win/lose depending on speed we hit the platform with
+            if (lastVelocity.magnitude > maxLandingSpeed)
+            {
+                OnGameOver(false);
+            }
+            else
+            {
+                OnGameOver(true);
+            }
+        }
     }
 }
